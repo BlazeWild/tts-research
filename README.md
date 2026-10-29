@@ -28,14 +28,13 @@ python app.py
 
 Then open <http://127.0.0.1:7860>. The initial request downloads roughly several GB of model files and will take longer than later requests.
 
-Every successful generation is also saved as a 16-bit WAV under `audios/`, so browser playback is not required. To generate directly from the terminal:
+Every successful generation is also saved as a 16-bit WAV under `audios/`, so browser playback is not required. Five Nepali test sentences and their voice styles are stored directly in `generate_examples.py`. Generate the complete batch without putting Nepali text in the terminal:
 
 ```bash
-TTS_DEVICE=cpu TTS_DTYPE=float32 python generate_audio.py \
-  "नमस्कार! तपाईंलाई आज के सहयोग चाहिएको छ?"
+TTS_DEVICE=cpu TTS_DTYPE=float32 python generate_examples.py
 ```
 
-CPU FP32 is slow but the safest quality/debugging mode. BF16 is smaller and can be selected with `TTS_DTYPE=bfloat16`. The engine enforces a text-length-based minimum generation duration to prevent the model from stopping after its first word; override it only for experiments with `TTS_MIN_NEW_TOKENS`.
+This creates stable files named `01_welcome.wav` through `05_assistant_answer.wav`. CPU FP32 is slow but the safest quality/debugging mode. BF16 is smaller and can be selected with `TTS_DTYPE=bfloat16`. The engine enforces a text-length-based minimum generation duration to prevent the model from stopping after its first word; override it only for experiments with `TTS_MIN_NEW_TOKENS`.
 
 ### Fixing `Model access denied`
 
