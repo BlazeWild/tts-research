@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import os
+import re
 import threading
 import time
 from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
 
 import numpy as np
 
@@ -16,6 +19,7 @@ class SynthesisResult:
     audio: np.ndarray
     elapsed_seconds: float
     device: str
+    saved_path: Path
 
 
 class IndicParlerEngine:
@@ -99,6 +103,15 @@ class IndicParlerEngine:
                 description, return_tensors="pt"
             ).to(input_device)
             prompt = self.prompt_tokenizer(text, return_tensors="pt").to(input_device)
+            # Parler occasionally predicts EOS after the first Nepali word. One
+            # audio-code token represents roughly 512/44100 seconds. Derive a
+            # conservative floor from non-whitespace characters so it has time
+            # to speak the complete sentence instead of returning a sub-second
+            # clip. This can be overridden for experiments.
+            spoken_chars = len(re.sub(r"\s+", "", text))
+            min_new_tokens = int(
+                os.getenv("TTS_MIN_NEW_TOKENS", str(max(128, min(1800, spoken_chars * 7))))
+            )
             started = time.perf_counter()
             with torch.inference_mode():
                 generated = self.model.generate(
@@ -106,12 +119,25 @@ class IndicParlerEngine:
                     attention_mask=desc.attention_mask,
                     prompt_input_ids=prompt.input_ids,
                     prompt_attention_mask=prompt.attention_mask,
+                    min_new_tokens=min_new_tokens,
+                    max_new_tokens=max(2048, min_new_tokens + 256),
                 )
             audio = generated.detach().float().cpu().numpy().squeeze()
             elapsed = time.perf_counter() - started
+            output_dir = Path(
+                os.getenv("TTS_OUTPUT_DIR", Path(__file__).resolve().parent / "audios")
+            )
+            output_dir.mkdir(parents=True, exist_ok=True)
+            stamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+            saved_path = output_dir / f"nepali-{stamp}.wav"
+            import soundfile as sf
+
+            # PCM_16 plays reliably in browsers, desktop players, and notebooks.
+            sf.write(saved_path, audio, self.model.config.sampling_rate, subtype="PCM_16")
             return SynthesisResult(
                 sample_rate=self.model.config.sampling_rate,
                 audio=audio,
                 elapsed_seconds=elapsed,
                 device=self.device,
+                saved_path=saved_path,
             )

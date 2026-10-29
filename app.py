@@ -36,7 +36,7 @@ def generate(text: str, emotion: str, speed: str, pitch: str, custom: str):
     duration = len(result.audio) / result.sample_rate
     status = (
         f"Generated {duration:.1f}s audio in {result.elapsed_seconds:.1f}s · "
-        f"{result.device} · {result.sample_rate:,} Hz"
+        f"{result.device} · {result.sample_rate:,} Hz · saved to {result.saved_path}"
     )
     return (result.sample_rate, result.audio), status, description
 
